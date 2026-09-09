@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#eef1f5">
+<title>Cotizador</title>
+<style>
+  :root{
+    --bg:#eef1f5;
+    --card:#ffffff;
+    --ink:#131a22;
+    --muted:#6b7885;
+    --line:#dfe4ea;
+    --field:#f4f6f9;
+    --costo:#94a3b8;
+    --inv:#e0a33e;
+    --mio:#1f9d76;
+    --mio-soft:#e7f5f0;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:16px;
+    line-height:1.35;
+    padding:18px 14px calc(34px + env(safe-area-inset-bottom));
+    display:flex;justify-content:center;
+  }
+  .app{width:100%;max-width:470px}
+
+  h1{
+    font-size:15px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin:2px 0 14px;text-align:center;
+  }
+
+  .tabs{display:flex;gap:6px;background:#e2e7ee;padding:5px;border-radius:14px;margin-bottom:16px}
+  .tabs button{
+    flex:1;border:0;background:transparent;color:var(--muted);
+    font:inherit;font-weight:600;font-size:14.5px;padding:10px 6px;border-radius:10px;cursor:pointer;
+  }
+  .tabs button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(16,24,40,.12)}
+
+  .card{background:var(--card);border-radius:var(--radius);padding:18px 16px;box-shadow:0 1px 3px rgba(16,24,40,.07)}
+  .row{margin-bottom:16px}
+  .row:last-child{margin-bottom:0}
+  label.lbl{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:7px}
+
+  input[type=text]{
+    width:100%;border:1px solid var(--line);background:var(--field);
+    border-radius:12px;padding:13px 14px;font:inherit;font-size:19px;font-weight:600;color:var(--ink);
+    outline:none;
+  }
+  input[type=text]:focus{border-color:#9fb3c8;background:#fff}
+  .money{position:relative}
+  .money span{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;font-weight:600;pointer-events:none}
+  .money input{padding-left:46px}
+
+  .pctline{display:flex;gap:8px;align-items:stretch}
+  .pcbox{position:relative;flex:0 0 96px}
+  .pcbox input{padding-right:30px;text-align:center}
+  .pcbox b{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;font-weight:600;pointer-events:none}
+  .seg{flex:1;display:flex;gap:4px;background:var(--field);border:1px solid var(--line);border-radius:12px;padding:4px}
+  .seg button{
+    flex:1;border:0;background:transparent;border-radius:9px;font:inherit;font-size:13px;font-weight:600;
+    color:var(--muted);cursor:pointer;padding:6px 2px;line-height:1.2;
+  }
+  .seg button.on{background:var(--ink);color:#fff}
+
+  .result{margin-top:18px;background:var(--card);border-radius:var(--radius);padding:18px 16px;box-shadow:0 1px 3px rgba(16,24,40,.07)}
+  .result.mine{background:var(--mio-soft)}
+  .rlbl{font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .big{font-size:36px;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+  .big.ok{color:var(--mio)}
+  .sub{font-size:13.5px;color:var(--muted);margin-top:6px}
+
+  .bar{display:flex;height:10px;border-radius:99px;overflow:hidden;margin:16px 0 12px;background:var(--line)}
+  .bar i{display:block;height:100%}
+  .legend{display:flex;flex-direction:column;gap:8px}
+  .item{display:flex;align-items:center;gap:9px;font-size:14.5px}
+  .item .dot{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .item .nm{color:var(--muted)}
+  .item .pp{margin-left:auto;color:var(--muted);font-size:12.5px;font-weight:600}
+  .item .vl{font-weight:700;font-variant-numeric:tabular-nums;min-width:104px;text-align:right}
+
+  .formula{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+  .foot{margin:14px 2px 0;font-size:12px;color:var(--muted);text-align:center;line-height:1.4}
+  .warn{color:#b4451f;font-size:14px;font-weight:600;line-height:1.4}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Cotizador</h1>
+
+  <div class="tabs">
+    <button id="tab1" class="on" onclick="showTab(1)">Precio final</button>
+    <button id="tab2" onclick="showTab(2)">Cuánto me queda</button>
+  </div>
+
+  <!-- ============ PANTALLA 1 ============ -->
+  <section id="p1">
+    <div class="card">
+      <div class="row">
+        <label class="lbl" for="c1">Costo de subcontratar</label>
+        <div class="money"><span>US$</span><input type="text" id="c1" inputmode="decimal" placeholder="800"></div>
+      </div>
+
+      <div class="row">
+        <label class="lbl">Inversionista</label>
+        <div class="pctline">
+          <div class="pcbox"><input type="text" id="i1" inputmode="decimal" value="25"><b>%</b></div>
+          <div class="seg" id="ib1">
+            <button class="on" data-v="total">del total</button>
+            <button data-v="gan">de la ganancia</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <label class="lbl">Lo que quiero que me quede</label>
+        <div class="pctline">
+          <div class="pcbox"><input type="text" id="m1" inputmode="decimal" value="20"><b>%</b></div>
+          <div class="seg" id="mb1">
+            <button class="on" data-v="total">del total</button>
+            <button data-v="gan">de la ganancia</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="result">
+      <div class="rlbl">Precio final al cliente</div>
+      <div class="big" id="r1big">—</div>
+      <div id="r1body" class="hide">
+        <div class="bar"><i id="b1a"></i><i id="b1b"></i><i id="b1c"></i></div>
+        <div class="legend">
+          <div class="item"><span class="dot" style="background:var(--costo)"></span><span class="nm">Subcontratación</span><span class="pp" id="l1ap"></span><span class="vl" id="l1a"></span></div>
+          <div class="item"><span class="dot" style="background:var(--inv)"></span><span class="nm">Inversionista</span><span class="pp" id="l1bp"></span><span class="vl" id="l1b"></span></div>
+          <div class="item"><span class="dot" style="background:var(--mio)"></span><span class="nm">Para vos</span><span class="pp" id="l1cp"></span><span class="vl" id="l1c"></span></div>
+        </div>
+        <div class="formula" id="f1"></div>
+      </div>
+      <div class="sub warn hide" id="r1warn"></div>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA 2 ============ -->
+  <section id="p2" class="hide">
+    <div class="card">
+      <div class="row">
+        <label class="lbl" for="p2p">Precio final al cliente</label>
+        <div class="money"><span>US$</span><input type="text" id="p2p" inputmode="decimal" placeholder="1500"></div>
+      </div>
+
+      <div class="row">
+        <label class="lbl" for="c2">Costo de subcontratar</label>
+        <div class="money"><span>US$</span><input type="text" id="c2" inputmode="decimal" placeholder="800"></div>
+      </div>
+
+      <div class="row">
+        <label class="lbl">Inversionista</label>
+        <div class="pctline">
+          <div class="pcbox"><input type="text" id="i2" inputmode="decimal" value="25"><b>%</b></div>
+          <div class="seg" id="ib2">
+            <button class="on" data-v="total">del total</button>
+            <button data-v="gan">de la ganancia</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="result mine">
+      <div class="rlbl">Te queda</div>
+      <div class="big ok" id="r2big">—</div>
+      <div class="sub" id="r2sub"></div>
+      <div id="r2body" class="hide">
+        <div class="bar"><i id="b2a"></i><i id="b2b"></i><i id="b2c"></i></div>
+        <div class="legend">
+          <div class="item"><span class="dot" style="background:var(--costo)"></span><span class="nm">Subcontratación</span><span class="pp" id="l2ap"></span><span class="vl" id="l2a"></span></div>
+          <div class="item"><span class="dot" style="background:var(--inv)"></span><span class="nm">Inversionista</span><span class="pp" id="l2bp"></span><span class="vl" id="l2b"></span></div>
+          <div class="item"><span class="dot" style="background:var(--mio)"></span><span class="nm">Para vos</span><span class="pp" id="l2cp"></span><span class="vl" id="l2c"></span></div>
+        </div>
+        <div class="formula" id="f2"></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Los porcentajes y las opciones «del total / de la ganancia» quedan guardados para la próxima vez.</p>
+</div>
+
+<script>
+/* ---------- helpers ---------- */
+function num(el){
+  var v = String(el.value || '').trim().replace(/\s/g, '').replace(/,/g, '.');
+  if(!v) return NaN;
+  var n = parseFloat(v);
+  return isFinite(n) ? n : NaN;
+}
+function fmt(n){
+  return 'US$ ' + n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function pc(n){
+  if(!isFinite(n)) return '—';
+  return n.toLocaleString('es-AR', {maximumFractionDigits:1}) + '%';
+}
+function seg(id){
+  var on = document.getElementById(id).querySelector('button.on');
+  return on ? on.dataset.v : 'total';
+}
+function setSeg(id, v){
+  document.getElementById(id).querySelectorAll('button').forEach(function(b){
+    b.classList.toggle('on', b.dataset.v === v);
+  });
+}
+
+/* ---------- memoria de porcentajes (última vez) ---------- */
+var STORE = 'cotizador.v1';
+var PCTS = ['i1', 'm1', 'i2'];
+var SEGS = ['ib1', 'mb1', 'ib2'];
+
+function guardar(){
+  try{
+    var d = {};
+    PCTS.forEach(function(id){
+      var v = document.getElementById(id).value.trim();
+      if(v) d[id] = v;
+    });
+    SEGS.forEach(function(id){ d[id] = seg(id); });
+    localStorage.setItem(STORE, JSON.stringify(d));
+  }catch(e){}
+}
+function recordar(){
+  var d;
+  try{ d = JSON.parse(localStorage.getItem(STORE) || 'null'); }catch(e){ return; }
+  if(!d) return;
+  PCTS.forEach(function(id){
+    if(typeof d[id] === 'string' && d[id]) document.getElementById(id).value = d[id];
+  });
+  SEGS.forEach(function(id){
+    if(d[id] === 'total' || d[id] === 'gan') setSeg(id, d[id]);
+  });
+}
+function bar(a, b, c, ids){
+  var t = a + b + c;
+  if(t <= 0) t = 1;
+  var col = ['var(--costo)', 'var(--inv)', 'var(--mio)'];
+  [a, b, c].forEach(function(v, k){
+    var e = document.getElementById(ids[k]);
+    e.style.width = Math.max(0, v / t * 100) + '%';
+    e.style.background = col[k];
+  });
+}
+function showTab(n){
+  document.getElementById('tab1').classList.toggle('on', n === 1);
+  document.getElementById('tab2').classList.toggle('on', n === 2);
+  document.getElementById('p1').classList.toggle('hide', n !== 1);
+  document.getElementById('p2').classList.toggle('hide', n !== 2);
+}
+
+/* ---------- pantalla 1: precio final ---------- */
+function calc1(){
+  var big = document.getElementById('r1big'),
+      body = document.getElementById('r1body'),
+      warn = document.getElementById('r1warn');
+
+  function fail(msg){
+    big.textContent = '—';
+    body.classList.add('hide');
+    warn.classList.toggle('hide', !msg);
+    warn.textContent = msg || '';
+  }
+
+  var C = num(document.getElementById('c1'));
+  var i = num(document.getElementById('i1')) / 100;
+  var m = num(document.getElementById('m1')) / 100;
+  var ib = seg('ib1'), mb = seg('mb1');
+
+  if(!isFinite(C) || C < 0) return fail('');
+  if(!isFinite(i)) i = 0;
+  if(!isFinite(m)) m = 0;
+
+  if(ib === 'gan' && mb === 'gan'){
+    if(Math.abs(i + m - 1) > 1e-9)
+      return fail('Si los dos porcentajes son sobre la ganancia tienen que sumar 100% (ahora suman ' + pc((i + m) * 100) + '). Poné al menos uno "del total" para que exista un precio.');
+    return fail('Los dos son sobre la ganancia y suman 100%: cualquier precio cumple la condición. Definí uno "del total".');
+  }
+  if(i + m >= 1)
+    return fail('Los porcentajes suman ' + pc((i + m) * 100) + ' del total: no queda nada para pagar la subcontratación, así que no hay precio posible.');
+
+  var a = (ib === 'gan') ? 1 : 0;
+  var b = (mb === 'gan') ? 1 : 0;
+  var P = C * (1 - a * i - b * m) / (1 - i - m);
+
+  var inv = (ib === 'gan') ? i * (P - C) : i * P;
+  var mine = P - C - inv;
+  var g = P - C;
+
+  warn.classList.add('hide');
+  body.classList.remove('hide');
+  big.textContent = fmt(P);
+
+  bar(C, inv, mine, ['b1a', 'b1b', 'b1c']);
+  document.getElementById('l1a').textContent = fmt(C);
+  document.getElementById('l1b').textContent = fmt(inv);
+  document.getElementById('l1c').textContent = fmt(mine);
+  document.getElementById('l1ap').textContent = pc(C / P * 100);
+  document.getElementById('l1bp').textContent = pc(inv / P * 100);
+  document.getElementById('l1cp').textContent = pc(mine / P * 100);
+  document.getElementById('f1').textContent =
+    'Ganancia bruta ' + fmt(g) + '. Te queda ' + pc(mine / P * 100) + ' del total y ' + pc(mine / g * 100) + ' de la ganancia.';
+}
+
+/* ---------- pantalla 2: cuánto me queda ---------- */
+function calc2(){
+  var big = document.getElementById('r2big'),
+      sub = document.getElementById('r2sub'),
+      body = document.getElementById('r2body');
+
+  var P = num(document.getElementById('p2p'));
+  var C = num(document.getElementById('c2'));
+  var i = num(document.getElementById('i2')) / 100;
+  var ib = seg('ib2');
+
+  if(!isFinite(P) || P <= 0 || !isFinite(C) || C < 0){
+    big.textContent = '—';
+    sub.textContent = '';
+    body.classList.add('hide');
+    return;
+  }
+  if(!isFinite(i)) i = 0;
+
+  var g = P - C;
+  var inv = (ib === 'gan') ? i * g : i * P;
+  var mine = P - C - inv;
+
+  big.textContent = fmt(mine);
+  big.style.color = mine < 0 ? '#b4451f' : '';
+  sub.textContent = (mine < 0 ? 'Estás perdiendo plata. ' : '') +
+    pc(mine / P * 100) + ' del total · ' + (g > 0 ? pc(mine / g * 100) + ' de la ganancia' : 'sin ganancia bruta');
+
+  body.classList.remove('hide');
+  bar(C, inv, Math.max(mine, 0), ['b2a', 'b2b', 'b2c']);
+  document.getElementById('l2a').textContent = fmt(C);
+  document.getElementById('l2b').textContent = fmt(inv);
+  document.getElementById('l2c').textContent = fmt(mine);
+  document.getElementById('l2ap').textContent = pc(C / P * 100);
+  document.getElementById('l2bp').textContent = pc(inv / P * 100);
+  document.getElementById('l2cp').textContent = pc(mine / P * 100);
+  document.getElementById('f2').textContent = 'Ganancia bruta (precio − subcontratación): ' + fmt(g) + '.';
+}
+
+function calc(){ calc1(); calc2(); }
+
+document.querySelectorAll('.seg').forEach(function(g){
+  g.addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if(!b) return;
+    g.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    calc();
+    guardar();
+  });
+});
+document.querySelectorAll('input').forEach(function(el){
+  el.addEventListener('input', function(){
+    calc();
+    guardar();
+  });
+});
+
+recordar();
+calc();
+</script>
+</body>
+</html>
